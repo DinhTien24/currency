@@ -126,6 +126,19 @@ class CurrencyRateUpdateService(models.Model):
                            'company !'))]
 
     @api.multi
+    def get_actual_rate(self, curr, rate):
+        """
+        Can be overwritten to handle special behaviors per bank (ex: Vietnam).
+        """
+        self.ensure_one()
+        company = self.company_id
+        if 'rate_inverted' in self.env['res.currency']._fields:
+            if curr.with_context(
+                    force_company=company.id).rate_inverted:
+                rate = 1 / rate
+        return rate
+
+    @api.multi
     def refresh_currency(self):
         """Refresh the currencies rates !!for all companies now"""
         rate_obj = self.env['res.currency.rate']
@@ -174,12 +187,7 @@ class CurrencyRateUpdateService(models.Model):
                             # Used in currency_rate_inverted module. We do
                             # not want to add a glue module for the currency
                             # update.
-                            if 'rate_inverted' in self.env[
-                                    'res.currency']._fields:
-                                if curr.with_context(
-                                        force_company=company.id).\
-                                        rate_inverted:
-                                    rate = 1/rate
+                            rate = srv.get_actual_rate(curr, rate)
                             vals = {
                                 'currency_id': curr.id,
                                 'rate': rate,

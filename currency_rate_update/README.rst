@@ -84,6 +84,7 @@ Contributors
 * Daniel Dico <ddico@oerp.ca> (BOC)
 * Dmytro Katyukha <firemage.dima@gmail.com>
 * Jesús Ventosinos Mayor <jesus@comunitea.com>
+* Duc, Dao Dong <duc.dd@komit-consulting.com> (https://komit-consulting.com)
 
 Maintainer
 ----------
