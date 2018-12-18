@@ -126,22 +126,38 @@ class CurrencyRateUpdateService(models.Model):
                            'company !'))]
 
     @api.multi
-    def get_actual_rate(self, curr, rate):
+    def generate_exchange_rate(self, curr, rate_name, res):
         """
         Can be overwritten to handle special behaviors per bank (ex: Vietnam).
         """
         self.ensure_one()
         company = self.company_id
-        if 'rate_inverted' in self.env['res.currency']._fields:
-            if curr.with_context(
-                    force_company=company.id).rate_inverted:
-                rate = 1 / rate
-        return rate
+        rate_obj = self.env['res.currency.rate']
+        rates = rate_obj.search([('currency_id', '=', curr.id),
+                                 ('company_id', '=', company.id),
+                                 ('name', '=', rate_name)])
+        if not rates:
+            rate = res[curr.name]
+            # Used in currency_rate_inverted module. We do
+            # not want to add a glue module for the currency
+            # update.
+            if 'rate_inverted' in self.env['res.currency']._fields:
+                if curr.with_context(force_company=company.id).rate_inverted:
+                    rate = 1 / rate
+            vals = {
+                'currency_id': curr.id,
+                'rate': rate,
+                'name': rate_name,
+                'company_id': company.id,
+            }
+            rate_obj.create(vals)
+            _logger.info(
+                'Updated currency %s via service %s in company %s',
+                curr.name, self.service, company.name)
 
     @api.multi
     def refresh_currency(self):
         """Refresh the currencies rates !!for all companies now"""
-        rate_obj = self.env['res.currency.rate']
         for srv in self:
             _logger.info(
                 'Starting to refresh currencies with service %s (company: %s)',
@@ -178,27 +194,7 @@ class CurrencyRateUpdateService(models.Model):
                     for curr in srv.currency_to_update:
                         if curr == main_currency:
                             continue
-                        rates = rate_obj.search([
-                            ('currency_id', '=', curr.id),
-                            ('company_id', '=', company.id),
-                            ('name', '=', rate_name)])
-                        if not rates:
-                            rate = res[curr.name]
-                            # Used in currency_rate_inverted module. We do
-                            # not want to add a glue module for the currency
-                            # update.
-                            rate = srv.get_actual_rate(curr, rate)
-                            vals = {
-                                'currency_id': curr.id,
-                                'rate': rate,
-                                'name': rate_name,
-                                'company_id': company.id,
-                            }
-                            rate_obj.create(vals)
-                            _logger.info(
-                                'Updated currency %s via service %s '
-                                'in company %s',
-                                curr.name, srv.service, company.name)
+                        srv.generate_exchange_rate(curr, rate_name, res)
 
                     # Show the most recent note at the top
                     msg = '%s <br/>%s currency updated.' % (
