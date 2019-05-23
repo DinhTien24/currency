@@ -175,10 +175,16 @@ class CurrencyRateUpdateService(models.Model):
                             # not want to add a glue module for the currency
                             # update.
                             if 'rate_inverted' in self.env[
-                                    'res.currency']._fields:
-                                if curr.with_context(
-                                        force_company=company.id).\
-                                        rate_inverted:
+                                'res.currency']._fields:
+                                if type(rate) is dict:
+                                    if curr.with_context(
+                                            force_company=company.id).\
+                                            rate_inverted:
+                                        rate = rate.get('inverted')
+                                    else:
+                                        rate = 1/rate.get('inverted')
+                                elif curr.with_context(
+                                    force_company=company.id).rate_inverted:
                                     rate = 1/rate
                             vals = {
                                 'currency_id': curr.id,
